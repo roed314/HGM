@@ -1,0 +1,3 @@
+A:B:family:ell:Au:Bu:Cu:degree:weight:type:bezout_det:radical_dim:isotropic_dim:witt_index:ambient_order:ambient_factored_order:monodromy_order:ambient_factored_order:monodromy_index:ambient_gens:monodromy_gens:ambient_name:ambient_matrix_group_label:ambient_group_label:monodromy_matrix_group_label:monodromy_group_label
+integer[]:integer[]:string:integer:integer[]:integer[]:integer[]:integer:integer:integer:integer:integer:integer:integer:integer:integer[]:integer:integer[]:integer[]:integer[]:integer[]:string:string:string:string:string
+

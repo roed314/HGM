@@ -125,9 +125,9 @@ if args.i is None:
     outfile = f"{args.infile}.out"
     plotbase = f"{args.infile}.plot"
 else:
-    outfile = f"{args.infile}.{i}.out"
-    plotbase = f"{args.infile}.{i}.plot"
-    polys = [polys[i]]
+    outfile = f"{args.infile}.{args.i}.out"
+    plotbase = f"{args.infile}.{args.i}.plot"
+    polys = [polys[args.i]]
 if args.kmin is None:
     args.kmin = -args.kmax
 kbounds = (args.kmin, args.kmax + 1)

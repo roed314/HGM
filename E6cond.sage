@@ -14,11 +14,12 @@ def intlist(L):
 parser.add_argument("--ps", type=intlist, default=[2,3])
 
 class PolyArray:
-    def __init__(self, polys):
+    def __init__(self, polys, primes=[2,3]):
         if len(polys) == 5:
             # E6 case
             polys = polys[:2] + polys[3:]
         self.polys = polys
+        self.primes = primes
 
     @cached_method
     def specialize(self, t):
@@ -27,10 +28,12 @@ class PolyArray:
         """
         S.<x> = QQ[]
         specialized = [S(f.subs(t=t)) for f in self.polys]
+        if not all(f.is_irreducible() for f in specialized):
+            raise ValueError("Reducible specialization")
         integral = [f * f.denominator() for f in specialized]
         monics = [f.subs(x=x/f.leading_coefficient()).monic() for f in integral]
+        discs = [ZZ(pari([f,self.primes]).nfdisc()) for f in monics]
         nfs = [NumberField(f, 'a') for f in monics]
-        discs = [K.discriminant() for K in nfs]
         return nfs, discs
 
     @cached_method
@@ -94,8 +97,8 @@ class PolyArray:
         return -1
 
 
-    def conductor_sweep(self, primes=[2,3], kbounds=(-30,31)):
-        for p in primes:
+    def conductor_sweep(self, kbounds=(-30,31)):
+        for p in self.primes:
             print(f"For p={p}:")
             t0 = time.time()
             for k in range(*kbounds):

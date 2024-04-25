@@ -119,7 +119,7 @@ class PolyArray:
 args = parser.parse_args()
 R.<t, x> = QQ[]
 with open(args.infile) as F:
-    s = F.read().replace("\n", "").replace(" ", "").replace("{", "[").replace("}", "]")
+    s = F.read().replace("\n", "").replace(" ", "").replace("\\", "").replace("{", "[").replace("}", "]")
     polys = sage_eval(s, {'x': x, 't': t})
 if args.i is None:
     outfile = f"{args.infile}.out"

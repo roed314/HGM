@@ -141,7 +141,7 @@ for i, f in enumerate(polys):
         plotbase = f"{args.infile}.{args.i}.plot"
     X = PolyArray(f)
     with open(outfile, "w") as F:
-        for p, k, v, c in X.conductor_sweep(args.ps, kbounds):
+        for p, k, v, c in X.conductor_sweep(kbounds):
             plot_points[p].add((k, c))
             _ = F.write(f"{v}*{p}^{k} {c}\n")
             F.flush()

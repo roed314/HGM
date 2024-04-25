@@ -1,6 +1,7 @@
 #!/usr/bin/env sage
 
 import argparse
+import time
 from collections import defaultdict
 
 parser = argparse.ArgumentParser(description="Conductors of hypergeometric motives")
@@ -96,10 +97,11 @@ class PolyArray:
     def conductor_sweep(self, primes=[2,3], kbounds=(-30,31)):
         for p in primes:
             print(f"For p={p}:")
+            t0 = time.time()
             for k in range(*kbounds):
                 if k == 0: # skipping for now since not stable angularization
                     continue
-                print(f" Starting k={k}")
+                print(f" Starting k={k} at time {time.time() - t0:.2f}")
                 vprec = 3 if (p == 2) else 2
                 start = 1
                 array = []
@@ -121,23 +123,24 @@ R.<t, x> = QQ[]
 with open(args.infile) as F:
     s = F.read().replace("\n", "").replace(" ", "").replace("\\", "").replace("{", "[").replace("}", "]")
     polys = sage_eval(s, {'x': x, 't': t})
-if args.i is None:
-    outfile = f"{args.infile}.out"
-    plotbase = f"{args.infile}.plot"
-else:
-    outfile = f"{args.infile}.{args.i}.out"
-    plotbase = f"{args.infile}.{args.i}.plot"
+if args.i is not None:
     polys = [polys[args.i]]
 if args.kmin is None:
     args.kmin = -args.kmax
 kbounds = (args.kmin, args.kmax + 1)
 plot_points = defaultdict(set)
-with open(outfile, "w") as F:
-    for f in polys:
-        X = PolyArray(f)
+for i, f in enumerate(polys):
+    if args.i is None:
+        outfile = f"{args.infile}.{i}.out"
+        plotbase = f"{args.infile}.{i}.plot"
+    else:
+        outfile = f"{args.infile}.{args.i}.out"
+        plotbase = f"{args.infile}.{args.i}.plot"
+    X = PolyArray(f)
+    with open(outfile, "w") as F:
         for p, k, v, c in X.conductor_sweep(args.ps, kbounds):
             plot_points[p].add((k, c))
             _ = F.write(f"{v}*{p}^{k} {c}\n")
             F.flush()
-for p, pts in plot_points.items():
-    points(pts).save(f"{plotbase}.{p}.png")
+    for p, pts in plot_points.items():
+        points(pts).save(f"{plotbase}.{p}.png")

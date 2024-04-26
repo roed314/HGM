@@ -125,8 +125,7 @@ else:
     try:
         subprocess.run(f"parallel -j {args.jobs} -a {jobfile} --joblog {jobfile}.log --colsep ' ' ./trinomial_cond.py --nograph{noramp} -w='{{1}}' -r='{{2}}' -p='{{3}}' -m='{{4}}' -k='{{5}}'", shell=True, check=True)
     finally:
-        pass
-        #jobfile.unlink()
+        jobfile.unlink()
 
 if not args.nograph:
     fname_re = re.compile(r"(?P<p>\d+)\.(?P<w>\d+)\.(?P<r>\d+)\.(?P<m>\d+)\.(?P<k>[0-9\-]+)\.out")
@@ -140,7 +139,7 @@ if not args.nograph:
         if m:
             p, w, r, m, k = int(m.group("p")), int(m.group("w")), int(m.group("r")), int(m.group("m")), int(m.group("k"))
             ks = get_ks(p, w, r)
-            if not (m in args.m and p in args.p and w in args.w and r in args.r and m*ks[0] <= k <= m*ks[0]):
+            if not (m in args.m and p in args.p and w in args.w and r in args.r and m*ks[0] <= k <= m*ks[1]):
                 continue
             color = colors[m-1]
             with open(fname) as F:

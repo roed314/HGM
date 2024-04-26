@@ -1,7 +1,7 @@
 #!/usr/bin/env -S sage -python
 
 # EXAMPLE USAGE:
-# ./trinomial_cond.py -p 2 -w 2 -r='0-1' -m='1-7' -j 2 --noramp
+# ./trinomial_cond.py -p 2 -w='2-3' -r='0-2' -m='1-10' -j 80 --noramp
 
 import argparse
 import pathlib
@@ -110,7 +110,7 @@ if args.jobs is None:
                     write_points(w, r, p, m, get_ks(p, w, r))
 else:
     noramp = " --noramp" if args.noramp else ""
-    jobfile = pathlib.Path("DATA", f"parallel{ZZ.random_element(65536).hex()}.jobs"):
+    jobfile = pathlib.Path("DATA", f"parallel{ZZ.random_element(65536).hex()}.jobs")
     with open(jobfile, "w") as F:
         for w in args.w:
             for r in args.r:

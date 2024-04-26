@@ -1,7 +1,7 @@
 #!/usr/bin/env -S sage -python
 
 # EXAMPLE USAGE:
-# ./trinomial_cond.py -p 2 -w 2 -r '0-1' -k='-10-10' -m '1-7' -j 2 --noramp
+# ./trinomial_cond.py -p 2 -w 2 -r='0-1' -m='1-7' -j 2 --noramp
 
 import argparse
 import pathlib
@@ -55,9 +55,6 @@ parser.add_argument("--noramp", action="store_true", help="Omit k that are not p
 parser.add_argument("--nograph", action="store_true", help="Only compute values, do not show graph")
 #parser.add_argument("--show", action="store_true", help="Only show stored values, do not compute")
 args = parser.parse_args()
-if args.k is None:
-    # Later we should be adaptive; for now just use a default
-    args.k = (-10, 30)
 if args.m is None:
     args.m = list(range(1,10))
 
@@ -95,6 +92,12 @@ def write_points(w, r, p, m, kminmax):
                 _ = F.write(f"[{m},{v},{vmod},{k / d},{(cond - cond0) / d}],\n")
             _ = F.write("]\n")
 
+def get_ks(p, w, r):
+    if args.k is None:
+        return ((-p**w / (p-1) * 11/10).floor(), (p**w * (w-r) * 11/10).ceil())
+    else:
+        return args.k
+
 if args.jobs is None:
     for w in args.w:
         for r in args.r:
@@ -104,15 +107,25 @@ if args.jobs is None:
                 for m in args.m:
                     if m % p == 0:
                         continue
-                    write_points(w, r, p, m, args.k)
+                    write_points(w, r, p, m, get_ks(p, w, r))
 else:
     noramp = " --noramp" if args.noramp else ""
-    ws = ' '.join(str(c) for c in args.w)
-    rs = ' '.join(str(c) for c in args.r)
-    ps = ' '.join(str(c) for c in args.p)
-    ms = ' '.join(str(c) for c in args.m)
-    ks = ' '.join(str(c) for c in range(args.k[0], args.k[1]+1))
-    subprocess.run(f"parallel -j {args.jobs} ./trinomial_cond.py --nograph{noramp} -w {{1}} -r {{2}} -p {{3}} -m {{4}} -k {{5}} ::: {ws} ::: {rs} ::: {ps} ::: {ms} ::: {ks}", shell=True, check=True)
+    jobfile = pathlib.Path("DATA", f"parallel{ZZ.random_element(65536).hex()}.jobs"):
+    with open(jobfile, "w") as F:
+        for w in args.w:
+            for r in args.r:
+                if r >= w:
+                    continue
+                for p in args.p:
+                    for m in args.m:
+                        if m % p == 0:
+                            continue
+                        for k in range(*get_ks(p, w, r)):
+                            _ = F.write(f"{w} {r} {p} {m} {k}\n")
+    try:
+        subprocess.run(f"parallel -j {args.jobs} -a {jobfile} ./trinomial_cond.py --nograph{noramp} -w {{1}} -r {{2}} -p {{3}} -m {{4}} -k {{5}}", shell=True, check=True)
+    finally:
+        jobfile.unlink()
 
 if not args.nograph:
     fname_re = re.compile(r"(?P<p>\d+)\.(?P<w>\d+)\.(?P<r>\d+)\.(?P<m>\d+)\.(?P<k>[0-9\-]+)\.out")
@@ -125,7 +138,8 @@ if not args.nograph:
         m = fname_re.fullmatch(fname.name)
         if m:
             p, w, r, m, k = int(m.group("p")), int(m.group("w")), int(m.group("r")), int(m.group("m")), int(m.group("k"))
-            if not (m in args.m and p in args.p and w in args.w and r in args.r and m*args.k[0] <= k <= m*args.k[1]):
+            ks = get_ks(p, w, r)
+            if not (m in args.m and p in args.p and w in args.w and r in args.r and m*ks[0] <= k <= m*ks[0]):
                 continue
             color = colors[m-1]
             with open(fname) as F:

@@ -111,7 +111,8 @@ else:
     rs = ' '.join(str(c) for c in args.r)
     ps = ' '.join(str(c) for c in args.p)
     ms = ' '.join(str(c) for c in args.m)
-    subprocess.run(f"parallel -j {args.jobs} ./trinomial_cond.py --nograph{noramp} -w {{1}} -r {{2}} -p {{3}} -m {{4}} -k {{5}} ::: {ws} ::: {rs} ::: {ps} ::: {ms} ::: {{{args.k[0]}..{args.k[1]}}}", shell=True, check=True)
+    ks = ' '.join(str(c) for c in range(args.k[0], args.k[1]+1))
+    subprocess.run(f"parallel -j {args.jobs} ./trinomial_cond.py --nograph{noramp} -w {{1}} -r {{2}} -p {{3}} -m {{4}} -k {{5}} ::: {ws} ::: {rs} ::: {ps} ::: {ms} ::: {ks}", shell=True, check=True)
 
 if not args.nograph:
     fname_re = re.compile(r"(?P<p>\d+)\.(?P<w>\d+)\.(?P<r>\d+)\.(?P<m>\d+)\.(?P<k>[0-9\-]+)\.out")

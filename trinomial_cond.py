@@ -8,7 +8,7 @@ import pathlib
 import subprocess
 import re
 from collections import defaultdict
-from sage.all import ZZ, QQ, PolynomialRing, points, Graphics, srange
+from sage.all import ZZ, QQ, PolynomialRing, points, Graphics, srange, floor, ceil
 from swan_conductor import PolyArray
 
 DATA = pathlib.Path("DATA")
@@ -94,7 +94,7 @@ def write_points(w, r, p, m, kminmax):
 
 def get_ks(p, w, r):
     if args.k is None:
-        return ((-p**w / (p-1) * 11/10).floor(), (p**w * (w-r) * 11/10).ceil())
+        return (floor(-p**w / (p-1) * 1.1), ceil(p**w * (w-r) * 1.1))
     else:
         return args.k
 

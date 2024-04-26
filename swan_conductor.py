@@ -1,32 +1,27 @@
-#!/usr/bin/env sage
-
-import argparse
+"""
+Functions for computing the Swan conductor of a number field.
+"""
 import time
-from collections import defaultdict
-
-parser = argparse.ArgumentParser(description="Conductors of hypergeometric motives")
-parser.add_argument("infile")
-parser.add_argument("--i", type=int, default=None)
-parser.add_argument("--kmax", type=int, default=30)
-parser.add_argument("--kmin", type=int, default=None)
-def intlist(L):
-    return [ZZ(c) for c in L.split(",")]
-parser.add_argument("--ps", type=intlist, default=[2,3])
+import re
+from sage.all import ZZ, QQ, PolynomialRing, NumberField, pari, sage_eval, euler_phi, cached_method
 
 class PolyArray:
-    def __init__(self, polys, primes=[2,3]):
+    def __init__(self, polys, w, primes=[2,3], quiet=False):
         if len(polys) == 5:
             # E6 case
             polys = polys[:2] + polys[3:]
         self.polys = polys
+        self.w = w
         self.primes = primes
+        self.quiet = quiet
 
     @cached_method
     def specialize(self, t):
         """
         Return number fields with monic integral defining polynomials arising from specializing at t
         """
-        S.<x> = QQ[]
+        S = PolynomialRing(QQ, "x")
+        x = S.gen()
         specialized = [S(f.subs(t=t)) for f in self.polys]
         if not all(f.is_irreducible() for f in specialized):
             raise ValueError("Reducible specialization")
@@ -59,29 +54,31 @@ class PolyArray:
             return c
         ctr = 0
         while True:
-            t = v * p^k
+            t = v * p**k
             try:
                 nfs, discs = self.specialize(t)
                 vals = self.valuations(t, p)
             except Exception:
-                v += p^vprec
+                v += p**vprec
                 ctr += 1
-                if ctr > 3:
+                if ctr > 3 and not self.quiet:
                     print(f"Warning: time {ctr} looping on v for p={p}, k={k}, v={v}")
             else:
                 break
         try:
             cexps = [_exponent(D, ws, K.degree()) for (K, D, ws) in zip(nfs, discs, vals)]
         except AssertionError:
-            return (p, k, v, None)
+            return (p, k, v, p**vprec, None)
         else:
             if len(cexps) == 1:
                 # Trinomial case
-                return (k, v, cexps[0])
+                return (p, k, v, p**vprec, cexps[0])
             elif len(cexps) == 4:
                 c = 2*cexps[0] + cexps[2] - cexps[1] - cexps[3] # TODO
                 assert c % 2 == 0
-                return (p, k, v, c//2)
+                return (p, k, v, p**vprec, c//2)
+            else:
+                raise NotImplementedError
 
     def periodicity(self, L, p):
         """
@@ -92,58 +89,63 @@ class PolyArray:
         n = ZZ(len(L))
         v = n.valuation(p)
         for m in range(v+1):
-            if all(len(set(L[a::euler_phi(p^m)])) == 1 for a in range(p^m)):
+            if all(len(set(L[a::euler_phi(p**m)])) == 1 for a in range(p**m)):
                 return m
         return -1
 
 
-    def conductor_sweep(self, kbounds=(-30,31)):
+    def conductor_sweep(self, ks):
         for p in self.primes:
-            print(f"For p={p}:")
+            if not self.quiet:
+                print(f"For p={p}:")
             t0 = time.time()
-            for k in range(*kbounds):
+            for k in ks:
                 if k == 0: # skipping for now since not stable angularization
                     continue
-                print(f" Starting k={k} at time {time.time() - t0:.2f}")
-                vprec = 3 if (p == 2) else 2
+                if not self.quiet:
+                    if len(ks) > 1:
+                        print(f" Starting k={k} at time {time.time() - t0:.2f}")
+                    else:
+                        print(f" Starting k={k}")
+                if k == 0:
+                    vprec = self.w + 1 # k=0 won't stabilize, so we take the maximum expected precision
+                else:
+                    vprec = 3 if (p == 2) else 2
                 start = 1
                 array = []
                 while True:
-                    for v in range(start, p^vprec):
+                    for v in range(start, p**vprec):
                         if v % p != 0:
                             array.append(self.conductor_exponent(p, k, v, vprec))
-                    per = self.periodicity([c for (p, k, v, c) in array], p)
+                    if k == 0:
+                        per = self.w + 1
+                    else:
+                        per = self.periodicity([c for (p, k, v, vmod, c) in array], p)
                     if per >= 0:
-                        yield from array[:euler_phi(p^per)]
+                        q = p**per
+                        for (p, k, v, vmod, c) in array[:euler_phi(q)]:
+                            yield p, k, v, q, c
                         break
-                    start = p^vprec + 1
+                    start = p**vprec + 1
                     vprec += 1
-                    print(array)
-                    print(f"  Increasing vprec to {vprec}")
+                    # May need to update values to account for larger vprec
+                    for j, (p, k, v, vmod, c) in enumerate(array):
+                        if v > vmod:
+                            if v < p**vprec:
+                                # Recompute
+                                array[j] = self.conductor_exponent(p, k, (v % vmod) + p**vprec, vprec)
+                            else:
+                                # Just update vmod
+                                array[j] = (p, k, v, p**vprec, c)
+                    if not self.quiet:
+                        print(f"  Increasing vprec to {vprec}")
 
-args = parser.parse_args()
-R.<t, x> = QQ[]
-with open(args.infile) as F:
-    s = F.read().replace("\n", "").replace(" ", "").replace("\\", "").replace("{", "[").replace("}", "]")
-    polys = sage_eval(s, {'x': x, 't': t})
-if args.i is not None:
-    polys = [polys[args.i]]
-if args.kmin is None:
-    args.kmin = -args.kmax
-kbounds = (args.kmin, args.kmax + 1)
-plot_points = defaultdict(set)
-for i, f in enumerate(polys):
-    if args.i is None:
-        outfile = f"{args.infile}.{i}.out"
-        plotbase = f"{args.infile}.{i}.plot"
-    else:
-        outfile = f"{args.infile}.{args.i}.out"
-        plotbase = f"{args.infile}.{args.i}.plot"
-    X = PolyArray(f)
-    with open(outfile, "w") as F:
-        for p, k, v, c in X.conductor_sweep(kbounds):
-            plot_points[p].add((k, c))
-            _ = F.write(f"{v}*{p}^{k} {c}\n")
-            F.flush()
-    for p, pts in plot_points.items():
-        points(pts).save(f"{plotbase}.{p}.png")
+def data_to_list(infile, outfile):
+    informat = re.compile(r"(\d+)\*(\d+)\^\(([0-9/\-]+)\) ([0-9/\-]+)")
+    with open(infile) as F:
+        with open(outfile, "w") as Fout:
+            _ = Fout.write("{\n")
+            for line in F:
+                v, p, k, c = informat.match(line.strip()).groups()
+                _ = Fout.write(f"{{{v},{k},{c}}},\n")
+            _ = Fout.write("}\n")

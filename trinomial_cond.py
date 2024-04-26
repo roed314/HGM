@@ -1,5 +1,8 @@
 #!/usr/bin/env -S sage -python
 
+# EXAMPLE USAGE:
+# ./trinomial_cond.py -p 2 -w 2 -r '0-1' -k='-10-10' -m '1-7' -j 2 --noramp
+
 import argparse
 import pathlib
 import subprocess
@@ -120,7 +123,7 @@ if not args.nograph:
     for fname in DATA.iterdir():
         m = fname_re.fullmatch(fname.name)
         if m:
-            p, w, r, m, k = int(m.group("p")), int(m.group("w")), int(m.group("r")), int(m.group("m")), int(m.group("k")
+            p, w, r, m, k = int(m.group("p")), int(m.group("w")), int(m.group("r")), int(m.group("m")), int(m.group("k"))
             if not (m in args.m and p in args.p and w in args.w and r in args.r and m*args.k[0] <= k <= m*args.k[1]):
                 continue
             color = colors[m-1]

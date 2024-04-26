@@ -123,9 +123,10 @@ else:
                         for k in range(*get_ks(p, w, r)):
                             _ = F.write(f"{w} {r} {p} {m} {k}\n")
     try:
-        subprocess.run(f"parallel -j {args.jobs} -a {jobfile} ./trinomial_cond.py --nograph{noramp} -w='{{1}}' -r='{{2}}' -p='{{3}}' -m='{{4}}' -k='{{5}}'", shell=True, check=True)
+        subprocess.run(f"parallel -j {args.jobs} -a {jobfile} --joblog {jobfile}.log ./trinomial_cond.py --nograph{noramp} -w='{{1}}' -r='{{2}}' -p='{{3}}' -m='{{4}}' -k='{{5}}'", shell=True, check=True)
     finally:
-        jobfile.unlink()
+        pass
+        #jobfile.unlink()
 
 if not args.nograph:
     fname_re = re.compile(r"(?P<p>\d+)\.(?P<w>\d+)\.(?P<r>\d+)\.(?P<m>\d+)\.(?P<k>[0-9\-]+)\.out")

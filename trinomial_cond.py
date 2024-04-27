@@ -13,6 +13,8 @@ from swan_conductor import PolyArray
 
 DATA = pathlib.Path("DATA")
 DATA.mkdir(exist_ok=True)
+PICS = pathlib.Path("pictures")
+PICS.mkdir(exist_ok=True)
 
 parser = argparse.ArgumentParser(description="Computes Swan conductors of trinomial hypergeometric motives\nThe trinomial motive is given by a^a x^b (1-x)^c - b^b c^c t, where m ranges from 1 to mmax (prime to p), b=mp^r, c=m(p^w-p^r), a=b+c, and t is specialized at up^k.")
 ilist_re = re.compile(r"(-?\d+)(-\d+)?")
@@ -58,6 +60,17 @@ args = parser.parse_args()
 if args.m is None:
     args.m = list(range(1,10))
 
+def outfile(p, w, r, m, k):
+    return DATA / f"{p}.{w}.{r}.{m}.{k}.out"
+def outfiles_exist(p, w, r, m, k0):
+    # Used to determine whether a recursive call to this script needs to be made under parallel
+    # The k0 here needs to be (roughly) multiplied by m to get valid inputs for outfile
+    if args.noramp:
+        ks = [k for k in range(m*k0, m*(k0+1)) if k%p == 0]
+    else:
+        ks = range(m*k0, m*(k0+1))
+    return all(outfile(p, w, r, m, k).exists() for k in ks)
+
 R = PolynomialRing(QQ, "t,x")
 t,x = R.gens()
 def write_points(w, r, p, m, kminmax):
@@ -74,14 +87,14 @@ def write_points(w, r, p, m, kminmax):
     Y = PolyArray([g], w, [p], quiet=(args.jobs is not None))
     Y_lookup = defaultdict(dict)
     for k in ks:
-        outfile = DATA / f"{p}.{w}.{r}.{m}.{k}.out"
-        if outfile.exists():
+        fname = outfile(p, w, r, m, k)
+        if fname.exists():
             continue
         for p, k, v, vmod, cond in Y.conductor_sweep([k]):
             Y_lookup[k][v,vmod] = cond
         f = a**a * x**b * (1-x)**c - b**b * c**c * t
         X = PolyArray([f], w, [p], quiet=(args.jobs is not None))
-        with open(outfile, "w") as F:
+        with open(fname, "w") as F:
             _ = F.write("[\n")
             for p, k, v, vmod, cond in X.conductor_sweep([k]):
                 for (v0, v0mod), cond0 in Y_lookup[k].items():
@@ -94,7 +107,7 @@ def write_points(w, r, p, m, kminmax):
 
 def get_ks(p, w, r):
     if args.k is None:
-        return (floor(-p**w / (p-1) * 1.1), ceil(p**w * (w-r) * 1.1))
+        return (floor(-p**w / (p-1) * 1.5), ceil(p**w * (w-r) * 1.5))
     else:
         return args.k
 
@@ -111,6 +124,7 @@ if args.jobs is None:
 else:
     noramp = " --noramp" if args.noramp else ""
     jobfile = pathlib.Path("DATA", f"parallel{ZZ.random_element(65536).hex()}.jobs")
+    ctr = 0
     with open(jobfile, "w") as F:
         for w in args.w:
             for r in args.r:
@@ -121,9 +135,12 @@ else:
                         if m % p == 0:
                             continue
                         for k in range(*get_ks(p, w, r)):
-                            _ = F.write(f"{w} {r} {p} {m} {k}\n")
+                            if not outfiles_exist(p, w, r, m, k):
+                                _ = F.write(f"{w} {r} {p} {m} {k}\n")
+                                ctr += 1
     try:
-        subprocess.run(f"parallel -j {args.jobs} -a {jobfile} --joblog {jobfile}.log --colsep ' ' ./trinomial_cond.py --nograph{noramp} -w='{{1}}' -r='{{2}}' -p='{{3}}' -m='{{4}}' -k='{{5}}'", shell=True, check=True)
+        if ctr > 0:
+            subprocess.run(f"parallel -j {args.jobs} -a {jobfile} --joblog {jobfile}.log --colsep ' ' ./trinomial_cond.py --nograph{noramp} -w='{{1}}' -r='{{2}}' -p='{{3}}' -m='{{4}}' -k='{{5}}'", shell=True, check=True)
     finally:
         jobfile.unlink()
 
@@ -131,26 +148,37 @@ if not args.nograph:
     fname_re = re.compile(r"(?P<p>\d+)\.(?P<w>\d+)\.(?P<r>\d+)\.(?P<m>\d+)\.(?P<k>[0-9\-]+)\.out")
     line_re = re.compile(r"\[(?P<m>\d+),(?P<v>\d+),(?P<vmod>\d+),(?P<x>[0-9/\-]+),(?P<y>[0-9/\-]+)\]")
     plot_points = defaultdict(lambda: defaultdict(set))
+    data_points = defaultdict(list)
     colors = ["blue", "salmon", "red", "maroon", "green", "navy", "purple", "brown", "orange", "gold", "turquoise", "black"]
     colors = colors[:len(args.m)]
     colors = colors + ["black" for _ in range(len(args.m)-len(colors))]
     for fname in DATA.iterdir():
-        m = fname_re.fullmatch(fname.name)
-        if m:
-            p, w, r, m, k = int(m.group("p")), int(m.group("w")), int(m.group("r")), int(m.group("m")), int(m.group("k"))
+        match = fname_re.fullmatch(fname.name)
+        if match:
+            p, w, r, m, k = int(match.group("p")), int(match.group("w")), int(match.group("r")), int(match.group("m")), int(match.group("k"))
             ks = get_ks(p, w, r)
             if not (m in args.m and p in args.p and w in args.w and r in args.r and m*ks[0] <= k <= m*ks[1]):
                 continue
-            color = colors[m-1]
             with open(fname) as F:
                 for line in F:
                     line = line.strip()[:-1] # strip ending comma or bracket
                     if line:
                         D = line_re.fullmatch(line)
-                        plot_points[p,w,r][color].add((QQ(D.group("x")), QQ(D.group("y"))))
+                        v, vmod, x, y = int(D.group("v")), int(D.group("vmod")), QQ(D.group("x")), QQ(D.group("y"))
+                        plot_points[p,w,r][m].add((x, y))
+                        data_points[p,w,r].append((m, v % vmod, v, vmod, x, y))
     for (p,w,r),D in plot_points.items():
-        plotfile = DATA / f"{p}.{w}.{r}.png"
+        plotfile = PICS / f"{p}.{w}.{r}.png"
         G = Graphics()
-        for color, pts in D.items():
+        for m, pts in D.items():
+            color = colors[m-1]
             G += points(pts, color=color)
         G.save(str(plotfile))
+    for (p,w,r),L in data_points.items():
+        L.sort()
+        datafile = PICS / f"{p}.{w}.{r}.points"
+        with open(datafile, "w") as F:
+            _ = F.write("[\n")
+            for m, vv, v, vmod, x, y in L:
+                _ = F.write(f"[{m},{v},{vmod},{x},{y}],\n")
+            _ = F.write("]\n")

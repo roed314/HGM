@@ -55,6 +55,7 @@ parser.add_argument("-m", help="Value of m, determining a,b,c from c=m(p^w-p^r),
 parser.add_argument("-j", "--jobs", help="Signals that jobs should be run in parallel, and specifies number of processes to use", type=int, default=None)
 parser.add_argument("--noramp", action="store_true", help="Omit k that are not prime to p")
 parser.add_argument("--nograph", action="store_true", help="Only compute values, do not show graph")
+parser.add_argument("--quiet", action="store_true", help="Do not print status output")
 #parser.add_argument("--show", action="store_true", help="Only show stored values, do not compute")
 args = parser.parse_args()
 if args.m is None:
@@ -84,7 +85,7 @@ def write_points(w, r, p, m, kminmax):
     else:
         ks = list(range(m*k0, m*(k1+1)))
     g = x**b - t # more generally, exponent should be gcd(b,c).
-    Y = PolyArray([g], w, [p], quiet=(args.jobs is not None))
+    Y = PolyArray([g], w, [p], quiet=args.quiet)
     Y_lookup = defaultdict(dict)
     for k in ks:
         fname = outfile(p, w, r, m, k)
@@ -93,7 +94,7 @@ def write_points(w, r, p, m, kminmax):
         for p, k, v, vmod, cond in Y.conductor_sweep([k]):
             Y_lookup[k][v,vmod] = cond
         f = a**a * x**b * (1-x)**c - b**b * c**c * t
-        X = PolyArray([f], w, [p], quiet=(args.jobs is not None))
+        X = PolyArray([f], w, [p], quiet=args.quiet)
         with open(fname, "w") as F:
             _ = F.write("[\n")
             for p, k, v, vmod, cond in X.conductor_sweep([k]):
@@ -140,11 +141,15 @@ else:
                                 ctr += 1
     try:
         if ctr > 0:
-            subprocess.run(f"parallel -j {args.jobs} -a {jobfile} --joblog {jobfile}.log --colsep ' ' ./trinomial_cond.py --nograph{noramp} -w='{{1}}' -r='{{2}}' -p='{{3}}' -m='{{4}}' -k='{{5}}'", shell=True, check=True)
+            if not quiet:
+                print(f"Starting parallel run with {ctr} jobs, tracked in {jobfile}.log")
+            subprocess.run(f"parallel -j {args.jobs} -a {jobfile} --joblog {jobfile}.log --colsep ' ' ./trinomial_cond.py --quiet --nograph{noramp} -w='{{1}}' -r='{{2}}' -p='{{3}}' -m='{{4}}' -k='{{5}}'", shell=True, check=True)
     finally:
         jobfile.unlink()
 
 if not args.nograph:
+    if not quiet:
+        print("Creating graphs and point files")
     fname_re = re.compile(r"(?P<p>\d+)\.(?P<w>\d+)\.(?P<r>\d+)\.(?P<m>\d+)\.(?P<k>[0-9\-]+)\.out")
     line_re = re.compile(r"\[(?P<m>\d+),(?P<v>\d+),(?P<vmod>\d+),(?P<x>[0-9/\-]+),(?P<y>[0-9/\-]+)\]")
     plot_points = defaultdict(lambda: defaultdict(set))

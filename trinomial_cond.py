@@ -141,14 +141,14 @@ else:
                                 ctr += 1
     try:
         if ctr > 0:
-            if not quiet:
+            if not args.quiet:
                 print(f"Starting parallel run with {ctr} jobs, tracked in {jobfile}.log")
             subprocess.run(f"parallel -j {args.jobs} -a {jobfile} --joblog {jobfile}.log --colsep ' ' ./trinomial_cond.py --quiet --nograph{noramp} -w='{{1}}' -r='{{2}}' -p='{{3}}' -m='{{4}}' -k='{{5}}'", shell=True, check=True)
     finally:
         jobfile.unlink()
 
 if not args.nograph:
-    if not quiet:
+    if not args.quiet:
         print("Creating graphs and point files")
     fname_re = re.compile(r"(?P<p>\d+)\.(?P<w>\d+)\.(?P<r>\d+)\.(?P<m>\d+)\.(?P<k>[0-9\-]+)\.out")
     line_re = re.compile(r"\[(?P<m>\d+),(?P<v>\d+),(?P<vmod>\d+),(?P<x>[0-9/\-]+),(?P<y>[0-9/\-]+)\]")

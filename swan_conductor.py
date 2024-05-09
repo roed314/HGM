@@ -161,7 +161,7 @@ def change_data_format():
     line_re = re.compile(r"\[(?P<m>\d+),(?P<v>\d+),(?P<vmod>\d+),(?P<x>[0-9/\-]+),(?P<y>[0-9/\-]+)\]")
     files = list(DATA.iterdir())
     maxw = defaultdict(int)
-    for fname in enumerate(files):
+    for fname in files:
         match = fname_re.fullmatch(fname.name)
         if match:
             p, w, r, m, k = int(match.group("p")), int(match.group("w")), int(match.group("r")), int(match.group("m")), int(match.group("k"))

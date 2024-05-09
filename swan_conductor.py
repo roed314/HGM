@@ -149,3 +149,62 @@ def data_to_list(infile, outfile):
                 v, p, k, c = informat.match(line.strip()).groups()
                 _ = Fout.write(f"{{{v},{k},{c}}},\n")
             _ = Fout.write("}\n")
+
+def change_data_format():
+    R = PolynomialRing(QQ, "t,x")
+    t,x = R.gens()
+    from pathlib import Path
+    DATA = Path("DATA")
+    NEWDATA = Path("NEWDATA")
+    fname_re = re.compile(r"(?P<p>\d+)\.(?P<w>\d+)\.(?P<r>\d+)\.(?P<m>\d+)\.(?P<k>[0-9\-]+)\.out")
+    line_re = re.compile(r"\[(?P<m>\d+),(?P<v>\d+),(?P<vmod>\d+),(?P<x>[0-9/\-]+),(?P<y>[0-9/\-]+)\]")
+    files = list(DATA.iterdir())
+    maxw = defaultdict(int)
+    for fname in enumerate(files):
+        match = fname_re.fullmatch(fname.name)
+        if match:
+            p, w, r, m, k = int(match.group("p")), int(match.group("w")), int(match.group("r")), int(match.group("m")), int(match.group("k"))
+            if k == 0:
+                maxw[p,r] = max(w, maxw[p,r])
+    Y_lookup = defaultdict(dict)
+    for j, fname in enumerate(files):
+        if j and j % 100 == 0:
+            print(f"Stage 1: {j}/{len(files)}")
+        match = fname_re.fullmatch(fname.name)
+        if match:
+            p, w, r, m, k = int(match.group("p")), int(match.group("w")), int(match.group("r")), int(match.group("m")), int(match.group("k"))
+            outfile = NEWDATA / f"{p}.{r}.{r}.{m}.{k}.out"
+            if outfile.exists():
+                continue
+            b = m * p**r
+            g = x**b - t
+            Y = PolyArray([g], max(r, maxw[p,r]), [p], quiet=True)
+            with open(outfile, "w") as F:
+                for p, k, v, vmod, cond0 in Y.conductor_sweep([k]):
+                    Y_lookup[p,r,m,k][v,vmod] = cond0
+                    _ = F.write(f"{v},{vmod},{cond0}")
+
+    for j, fname in enumerate(files):
+        if j and j % 1000 == 0:
+            print(f"Stage 2: {j}/{len(files)}")
+        match = fname_re.fullmatch(fname.name)
+        if match:
+            p, w, r, m, k = int(match.group("p")), int(match.group("w")), int(match.group("r")), int(match.group("m")), int(match.group("k"))
+            outfile = NEWDATA / f"{p}.{w}.{r}.{m}.{k}.out"
+            with open(fname) as F:
+                with open(outfile, "w") as Fout:
+                    for line in F:
+                        line = line.strip()[:-1] # strip ending comma or bracket
+                        if line:
+                            D = line_re.fullmatch(line)
+                            d = m * (p**w - p**r)
+                            v, vmod, x, y = int(D.group("v")), int(D.group("vmod")), QQ(D.group("x")), QQ(D.group("y"))
+                            assert k == x*d
+                            for (v0, v0mod), cond0 in Y_lookup[p,r,m,k].items():
+                                if (v - v0) % min(vmod, vmod0) == 0:
+                                    break
+                            else:
+                                raise RuntimeError(f"({v},{vmod}) not in Y_lookup[{p},{r},{m},{k}]")
+                            cond = y * d + cond0
+                            assert cond in ZZ
+                            _ = Fout.write(f"{v},{vmod},{cond}")

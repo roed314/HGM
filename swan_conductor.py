@@ -151,9 +151,10 @@ def data_to_list(infile, outfile):
             _ = Fout.write("}\n")
 
 def change_data_format():
+    from pathlib import Path
+    from collections import defaultdict
     R = PolynomialRing(QQ, "t,x")
     t,x = R.gens()
-    from pathlib import Path
     DATA = Path("DATA")
     NEWDATA = Path("NEWDATA")
     fname_re = re.compile(r"(?P<p>\d+)\.(?P<w>\d+)\.(?P<r>\d+)\.(?P<m>\d+)\.(?P<k>[0-9\-]+)\.out")

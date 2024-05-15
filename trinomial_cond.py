@@ -214,21 +214,6 @@ if not args.nograph:
                                 y = (c - cc) / d
                                 plot_points[p,w,r][m].add((x,y))
                                 data_points[p,w,r].append((m, v % vmod, v, vmod, x, y, m0 - mm0))
-    for fname in DATA.iterdir():
-        match = fname_re.fullmatch(fname.name)
-        if match:
-            p, w, r, m, k = int(match.group("p")), int(match.group("w")), int(match.group("r")), int(match.group("m")), int(match.group("k"))
-            ks = get_ks(p, w, r)
-            if not (m in args.m and p in args.p and w in args.w and r in args.r and m*ks[0] <= k <= m*ks[1]):
-                continue
-            with open(fname) as F:
-                for line in F:
-                    line = line.strip()[:-1] # strip ending comma or bracket
-                    if line:
-                        D = line_re.fullmatch(line)
-                        v, vmod, x, y = int(D.group("v")), int(D.group("vmod")), QQ(D.group("x")), QQ(D.group("y"))
-                        plot_points[p,w,r][m].add((x, y))
-                        data_points[p,w,r].append((m, v % vmod, v, vmod, x, y))
     for (p,w,r),D in plot_points.items():
         mmax = max([m for m in args.m if m % p != 0])
         plotfile = PICS / f"{p}.{w}.{r}.{mmax}.png"

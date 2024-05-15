@@ -120,7 +120,7 @@ def write_points(w, r, p, m, kminmax):
     c = m * (p**w - p**r)
     a = b + c
     if D:
-        f = a**a * x**b * (1 - x**2)**c - b**b * c**c * t
+        f = a**a * x**(2*b) * (1 - x**2)**c - b**b * c**c * t
     elif w == r:
         # binomial case
         f = x**b - t

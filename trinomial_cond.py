@@ -135,7 +135,7 @@ def write_points(w, r, p, m, kminmax):
             continue
         with open(fname, "w") as F:
             for p, k, v, vmod, cond, m0 in X.conductor_sweep([k]):
-                _ = F.write(f"{v},{vmod},{cond},{m0}")
+                _ = F.write(f"{v},{vmod},{cond},{m0}\n")
 
 if args.jobs is None:
     for w in args.w:

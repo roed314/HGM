@@ -104,8 +104,6 @@ class PolyArray:
                 print(f"For p={p}:")
             t0 = time.time()
             for k in ks:
-                if k == 0: # skipping for now since not stable angularization
-                    continue
                 if not self.quiet:
                     if len(ks) > 1:
                         print(f" Starting k={k} at time {time.time() - t0:.2f}")

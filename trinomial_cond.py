@@ -141,7 +141,7 @@ if args.jobs is None:
     for w in args.w:
         for r in args.r:
             for p in args.p:
-                for p, w, r in needed_pwr(p, w, r):
+                for p, w, r in needed_pwr(p, w, r)[:2]:
                     for m in args.m:
                         if m % p == 0:
                             continue

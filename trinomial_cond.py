@@ -183,10 +183,11 @@ if not args.nograph:
             p, w, r, m, k = int(match.group("p")), int(match.group("w")), int(match.group("r")), int(match.group("m")), int(match.group("k"))
             with open(fname) as F:
                 for line in F:
-                    D = line_re.fullmatch(line)
+                    D = line_re.fullmatch(line.strip())
                     if D:
                         v, vmod, c, m0 = int(D.group("v")), int(D.group("vmod")), int(D.group("c")), int(D.group("m0"))
                         data[p,w,r,m,k].append((v, vmod, c, m0))
+    print("datalen", len(data))
 
     plot_points = defaultdict(lambda: defaultdict(set))
     data_points = defaultdict(list)

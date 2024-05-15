@@ -187,7 +187,6 @@ if not args.nograph:
                     if D:
                         v, vmod, c, m0 = int(D.group("v")), int(D.group("vmod")), int(D.group("c")), int(D.group("m0"))
                         data[p,w,r,m,k].append((v, vmod, c, m0))
-    print("datalen", len(data))
 
     plot_points = defaultdict(lambda: defaultdict(set))
     data_points = defaultdict(list)
@@ -204,7 +203,8 @@ if not args.nograph:
                         if m % p == 0:
                             continue
                         d = ZZ(m * d0)
-                        for k in range(*get_ks(p, w, r)):
+                        k0, k1 = get_ks(p, w, r)
+                        for k in expand_ks(k0, k1, m, p):
                             x = k / d
                             for v, vmod, c, m0 in data[num+(m,k)]:
                                 for vv, vvmod, cc, mm0 in data[den+(m,k)]:

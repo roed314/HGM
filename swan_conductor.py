@@ -51,7 +51,8 @@ class PolyArray:
             assert sum(e*f for (e,f) in zip(es, fs)) == n
             c = D.valuation(p) - n + sum(fs)
             assert c >= 0
-            return c
+            m0 = sum(e.val_unit(p)[1] * f for (e,f) in zip(es, fs))
+            return c, m0
         ctr = 0
         while True:
             t = v * p**k
@@ -68,15 +69,18 @@ class PolyArray:
         try:
             cexps = [_exponent(D, ws, K.degree()) for (K, D, ws) in zip(nfs, discs, vals)]
         except AssertionError:
-            return (p, k, v, p**vprec, None)
+            return (p, k, v, p**vprec, None, None)
         else:
             if len(cexps) == 1:
-                # Trinomial case
-                return (p, k, v, p**vprec, cexps[0])
+                # Binomial or Trinomial case
+                c, m0 = cexps[0]
+                return (p, k, v, p**vprec, c, m0)
             elif len(cexps) == 4:
-                c = 2*cexps[0] + cexps[2] - cexps[1] - cexps[3] # TODO
+                c = 2*cexps[0][0] + cexps[2][0] - cexps[1][0] - cexps[3][0]
                 assert c % 2 == 0
-                return (p, k, v, p**vprec, c//2)
+                m0 = 2*cexps[0][1] + cexps[2][1] - cexps[1][1] - cexps[3][1] - 1
+                assert m0 % 2 == 0
+                return (p, k, v, p**vprec, c//2, m0//2)
             else:
                 raise NotImplementedError
 
@@ -120,23 +124,23 @@ class PolyArray:
                     if k == 0:
                         per = self.w + 1
                     else:
-                        per = self.periodicity([c for (p, k, v, vmod, c) in array], p)
+                        per = self.periodicity([c for (p, k, v, vmod, c, m0) in array], p)
                     if per >= 0:
                         q = p**per
-                        for (p, k, v, vmod, c) in array[:euler_phi(q)]:
-                            yield p, k, v, q, c
+                        for (p, k, v, vmod, c, m0) in array[:euler_phi(q)]:
+                            yield p, k, v, q, c, m0
                         break
                     start = p**vprec + 1
                     vprec += 1
                     # May need to update values to account for larger vprec
-                    for j, (p, k, v, vmod, c) in enumerate(array):
+                    for j, (p, k, v, vmod, c, m0) in enumerate(array):
                         if v > vmod:
                             if v < p**vprec:
                                 # Recompute
                                 array[j] = self.conductor_exponent(p, k, (v % vmod) + p**vprec, vprec)
                             else:
                                 # Just update vmod
-                                array[j] = (p, k, v, p**vprec, c)
+                                array[j] = (p, k, v, p**vprec, c, m0)
                     if not self.quiet:
                         print(f"  Increasing vprec to {vprec}")
 

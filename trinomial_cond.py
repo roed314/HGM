@@ -2,7 +2,7 @@
 
 # EXAMPLE USAGE:
 # ./trinomial_cond.py -p 2 -w='2-3' -r='0-2' -m='1-10' -j 80 --noramp
-# ./trinomial_cond.py -p 2 --D -w='2-3' -r='0-2' -m='1-10' -j 80 --noramp
+# ./trinomial_cond.py -p 2 --type=D -w='2-3' -r='0-2' -m='1-10' -j 80 --noramp
 
 import argparse
 import pathlib
@@ -80,15 +80,15 @@ def needed_pwr(p, w, r):
     if r == w:
         # binomial case
         if (r > 0) and (args.type is None or args.type == "binomial"):
-            return [(p, r, r), (p, r-1, r-1)]
+            return [(p, r, r), (p, r-1, r-1), p**r - p**(r-1)]
     elif r < w:
         # trinomial case
         if (r >= 0) and (args.type is None or args.type == "trinomial"):
-            return [(p, w, r), (p, r, r)]
+            return [(p, w, r), (p, r, r), p**w - p**r]
     else:
         # D case
         if p == 2 and (w > 0 and r < 2 * w + 1) and (args.type is None or args.type == "D"):
-            return [(p, w, r), (p, w, r - w - 1)]
+            return [(p, w, r), (p, w, r - w - 1), p**w]
     return []
 
 def outfile(p, w, r, m, k):
@@ -121,17 +121,12 @@ def write_points(w, r, p, m, kminmax):
     a = b + c
     if D:
         f = a**a * x**b * (1 - x**2)**c - b**b * c**c * t
-        g = a**a * x**b * (1 - x   )**c - b**b * c**c * t
     elif w == r:
         # binomial case
-        assert r >= 1
         f = x**b - t
-        g = x**(p**(r - 1)) - t
     elif w > r:
         # trinomial case
         f = a**a * x**b * (1-x)**c - b**b * c**c * t
-        g = x**b - t
-    d = f.degree(x) - g.degree(x)
 
     X = PolyArray([f], w, [p], quiet=args.quiet)
     for k in ks:
@@ -141,27 +136,6 @@ def write_points(w, r, p, m, kminmax):
         with open(fname, "w") as F:
             for p, k, v, vmod, cond, m0 in X.conductor_sweep([k]):
                 _ = F.write(f"{v},{vmod},{cond},{m0}")
-
-    Y = PolyArray([g], w, [p], quiet=args.quiet)
-    Y_lookup = defaultdict(dict)
-    for k in ks:
-        fname = outfile(p, w, r, m, k)
-        if fname.exists():
-            continue
-        for p, k, v, vmod, cond in Y.conductor_sweep([k]):
-            Y_lookup[k][v,vmod] = cond
-        
-        X = PolyArray([f], w, [p], quiet=args.quiet)
-        with open(fname, "w") as F:
-            _ = F.write("[\n")
-            for p, k, v, vmod, cond in X.conductor_sweep([k]):
-                for (v0, v0mod), cond0 in Y_lookup[k].items():
-                    if (v - v0) % min(vmod, v0mod) == 0:
-                        break
-                else:
-                    raise RuntimeError(f"({v}, {vmod}) not in {list(Y_lookup[k])}")
-                _ = F.write(f"[{m},{v},{vmod},{k / d},{(cond - cond0) / d}],\n")
-            _ = F.write("]\n")
 
 if args.jobs is None:
     for w in args.w:
